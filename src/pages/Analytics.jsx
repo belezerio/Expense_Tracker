@@ -24,8 +24,9 @@ async function fetchAnalyticsData(userId) {
 
   if (error || !txns || txns.length === 0) return { months: [], tags: [], txns: [] }
 
-  // Tags for those transactions
   const ids = txns.map(t => t.id)
+
+  // Tags for those transactions
   let tagMap = {}
   try {
     const { data: ttRows } = await supabase
@@ -38,6 +39,27 @@ async function fetchAnalyticsData(userId) {
     })
   } catch (_) {}
 
+  // ── Fetch debts to know which transactions have unsettled splits ──
+  // debtMap[transaction_id] = { hasUnsettled: bool, unsettledAmount: number }
+  let debtMap = {}
+  try {
+    const { data: debtRows } = await supabase
+      .from('debts')
+      .select('transaction_id, amount, is_settled')
+      .eq('user_id', userId)
+      .in('transaction_id', ids)
+
+    ;(debtRows ?? []).forEach(d => {
+      if (!debtMap[d.transaction_id]) {
+        debtMap[d.transaction_id] = { hasUnsettled: false, unsettledAmount: 0 }
+      }
+      if (!d.is_settled) {
+        debtMap[d.transaction_id].hasUnsettled = true
+        debtMap[d.transaction_id].unsettledAmount += Number(d.amount)
+      }
+    })
+  } catch (_) {}
+
   // Budgets
   const { data: budgets } = await supabase
     .from('budgets')
@@ -47,12 +69,18 @@ async function fetchAnalyticsData(userId) {
   const budgetMap = {}
   ;(budgets ?? []).forEach(b => { budgetMap[`${b.year}-${b.month}`] = Number(b.amount) })
 
-  const enriched = txns.map(t => ({ ...t, txn_tags: tagMap[t.id] ?? [] }))
+  const enriched = txns.map(t => ({
+    ...t,
+    txn_tags: tagMap[t.id] ?? [],
+    debtInfo: debtMap[t.id] ?? { hasUnsettled: false, unsettledAmount: 0 },
+  }))
 
-  // ── Spend = user's own share only (my_amount)
-  // Credits (my_amount < 0) = debt collected, handled separately
+  // ── spendOf: use total_amount when there are unsettled debts (you fronted
+  //    the full amount and haven't been paid back yet), otherwise my_amount
   const spendOf = (t) => {
-    return Number(t.my_amount)       // always use my_amount — user's share only
+    if (Number(t.my_amount) < 0) return Number(t.my_amount) // credit/collection — keep as-is
+    if (t.debtInfo?.hasUnsettled) return Number(t.total_amount)
+    return Number(t.my_amount)
   }
 
   // Group by month
@@ -64,9 +92,9 @@ async function fetchAnalyticsData(userId) {
       budget: budgetMap[`${t.year}-${t.month}`] || 0
     }
     monthMap[key].txns.push(t)
-    // Only count actual expenses, never credit/collection transactions
-    if (Number(t.my_amount) > 0) {
-      monthMap[key].total += Number(t.my_amount)
+    const spend = spendOf(t)
+    if (spend > 0) {
+      monthMap[key].total += spend
     }
   })
 
@@ -168,11 +196,11 @@ export default function Analytics() {
   const buildTagBreakdown = (txns) => {
     const map = {}
     txns.forEach(t => {
-      const mine = Number(t.my_amount)
-      if (mine <= 0) return           // skip credits and zero-amount entries
+      const spend = spendOf(t)
+      if (spend <= 0) return           // skip credits and zero-amount entries
       t.txn_tags.forEach(tag => {
         if (!map[tag.id]) map[tag.id] = { tag, val: 0, count: 0 }
-        map[tag.id].val   += mine     // only the user's own share
+        map[tag.id].val   += spend
         map[tag.id].count++
       })
     })
@@ -187,18 +215,18 @@ export default function Analytics() {
     if (!currentMonthData) return {}
     const map = {}
     currentMonthData.txns.forEach(t => {
-      const mine = Number(t.my_amount)
-      if (mine <= 0) return
+      const spend = spendOf(t)
+      if (spend <= 0) return
       const day = new Date(t.date).getDate()
-      map[day] = (map[day] || 0) + mine
+      map[day] = (map[day] || 0) + spend
     })
     return map
   })()
   const maxDay = Math.max(...Object.values(dayBreakdown), 1)
 
   // ── overall stats ─────────────────────────────────────────
-  const allTimeTxns  = data?.txns.filter(t => Number(t.my_amount) > 0) ?? []
-  const allTimeSpend = allTimeTxns.reduce((s, t) => s + Number(t.my_amount), 0)
+  const allTimeTxns  = data?.txns.filter(t => spendOf(t) > 0) ?? []
+  const allTimeSpend = allTimeTxns.reduce((s, t) => s + spendOf(t), 0)
   const avgMonthly   = data?.months.length ? data.months.reduce((s, m) => s + Math.max(m.total, 0), 0) / data.months.length : 0
   const maxMonthTotal = Math.max(...(data?.months.map(m => Math.max(m.total, 0)) ?? [0]), 1)
 
@@ -229,7 +257,6 @@ export default function Analytics() {
       <p className="text-4xl mb-4">📊</p>
       <p className="text-white/40 mb-1">No transaction data yet.</p>
       <p className="text-white/20 text-sm mb-4">Add some expenses on the dashboard first.</p>
-      {/* ← navigate(-1) or '/' — NOT signOut */}
       <button onClick={() => navigate('/dashboard')} className="text-sm text-emerald-400 hover:underline">← Back to Dashboard</button>
     </div>
   )
@@ -240,7 +267,6 @@ export default function Analytics() {
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-40 flex items-center justify-between px-5 py-3 border-b border-white/6 bg-[#09090f]/90 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          {/* Use navigate('/dashboard') explicitly — never triggers signOut */}
           <button
             onClick={() => navigate('/dashboard')}
             className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-sm"
@@ -516,6 +542,18 @@ export default function Analytics() {
                         {MONTHS[currentMonthData.month - 1]} {currentMonthData.year}
                       </p>
                       <p className="text-3xl font-bold">{fmtFull(Math.max(currentMonthData.total, 0))}</p>
+                      {/* Pending debt note */}
+                      {(() => {
+                        const pendingAmt = currentMonthData.txns.reduce((s, t) => {
+                          return s + (t.debtInfo?.hasUnsettled ? t.debtInfo.unsettledAmount : 0)
+                        }, 0)
+                        if (pendingAmt <= 0) return null
+                        return (
+                          <p className="text-xs mt-1 text-amber-300/80">
+                            💳 Includes {fmtFull(pendingAmt)} pending from friends
+                          </p>
+                        )
+                      })()}
                       {currentMonthData.budget > 0 && (
                         <p className={`text-xs mt-1 ${currentMonthData.total > currentMonthData.budget ? 'text-red-400' : 'text-emerald-400'}`}>
                           {currentMonthData.total > currentMonthData.budget
@@ -660,13 +698,19 @@ export default function Analytics() {
                     <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                       {filteredTxns.map(t => {
                         const isCredit = Number(t.my_amount) < 0
+                        const hasUnsettledDebt = t.debtInfo?.hasUnsettled
+                        const displayAmt = isCredit
+                          ? Math.abs(Number(t.my_amount))
+                          : spendOf(t)
                         return (
                           <div
                             key={t.id}
                             className={`flex items-center gap-3 border rounded-xl px-3 py-2.5 transition-all ${
                               isCredit
                                 ? 'bg-emerald-400/[0.04] border-emerald-400/15'
-                                : 'bg-white/[0.02] hover:bg-white/[0.04] border-white/5'
+                                : hasUnsettledDebt
+                                  ? 'bg-amber-400/[0.03] border-amber-400/15'
+                                  : 'bg-white/[0.02] hover:bg-white/[0.04] border-white/5'
                             }`}
                           >
                             <div className="text-base shrink-0">
@@ -678,6 +722,12 @@ export default function Analytics() {
                                 <span className="text-[10px] text-white/25">
                                   {new Date(t.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                 </span>
+                                {hasUnsettledDebt && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border font-medium"
+                                    style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.25)' }}>
+                                    💳 {fmtFull(t.debtInfo.unsettledAmount)} pending
+                                  </span>
+                                )}
                                 {t.txn_tags.map(tag => (
                                   <span
                                     key={tag.id}
@@ -689,9 +739,16 @@ export default function Analytics() {
                                 ))}
                               </div>
                             </div>
-                            <p className={`text-sm font-semibold shrink-0 ${isCredit ? 'text-emerald-400' : ''}`}>
-                              {isCredit ? '+' : ''}{fmtFull(Math.abs(Number(t.my_amount)))}
-                            </p>
+                            <div className="text-right shrink-0">
+                              <p className={`text-sm font-semibold ${isCredit ? 'text-emerald-400' : hasUnsettledDebt ? 'text-white' : ''}`}>
+                                {isCredit ? '+' : ''}{fmtFull(displayAmt)}
+                              </p>
+                              {hasUnsettledDebt && (
+                                <p className="text-[10px] text-white/25">
+                                  my share: {fmtFull(Number(t.my_amount))}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         )
                       })}

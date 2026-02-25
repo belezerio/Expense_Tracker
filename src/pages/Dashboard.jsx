@@ -30,9 +30,8 @@ const tagStyle = (color) => ({
 })
 
 // ─── Glass classes ────────────────────────────────────────────
-// Input: rich glass feel, full contrast on mobile
-const iCls = "w-full bg-white/8 border border-white/15 rounded-2xl px-4 py-3.5 text-sm text-white placeholder-white/30 outline-none focus:border-emerald-400/60 focus:bg-emerald-400/[0.05] transition-all caret-emerald-400"
-const sCls = "w-full bg-white/8 border border-white/15 rounded-2xl px-4 py-3.5 text-sm text-white outline-none focus:border-emerald-400/60 transition-all appearance-none"
+const iCls = "w-full bg-white/[0.08] border border-white/[0.15] rounded-2xl px-4 py-3.5 text-sm text-white placeholder-white/[0.30] outline-none focus:border-emerald-400/[0.60] focus:bg-emerald-400/[0.05] transition-all caret-emerald-400"
+const sCls = "w-full bg-white/[0.08] border border-white/[0.15] rounded-2xl px-4 py-3.5 text-sm text-white outline-none focus:border-emerald-400/[0.60] transition-all appearance-none"
 const lCls = "text-[11px] font-semibold text-white/50 uppercase tracking-widest mb-2 block"
 
 // ─── Modal ────────────────────────────────────────────────────
@@ -54,18 +53,6 @@ const Modal = ({ open, onClose, title, wide, children }) => {
         className={`relative w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'} sm:mx-4`}
         style={{
           background: 'linear-gradient(135deg, rgba(20,20,35,0.97) 0%, rgba(12,12,22,0.99) 100%)',
-          borderRadius: '24px 24px 0 0',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderBottom: 'none',
-          boxShadow: '0 -8px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset',
-          maxHeight: '92vh',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        // On sm+, make it a centered dialog
-        style={{
-          background: 'linear-gradient(135deg, rgba(20,20,35,0.97) 0%, rgba(12,12,22,0.99) 100%)',
           backdropFilter: 'blur(40px)',
           WebkitBackdropFilter: 'blur(40px)',
           borderRadius: 'clamp(16px, 4vw, 24px) clamp(16px, 4vw, 24px) 0 0',
@@ -77,12 +64,9 @@ const Modal = ({ open, onClose, title, wide, children }) => {
           flexDirection: 'column',
         }}
       >
-        {/* Drag handle (mobile hint) */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
-
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 shrink-0">
           <h3 className="font-semibold text-white text-base">{title}</h3>
           <button
@@ -90,13 +74,9 @@ const Modal = ({ open, onClose, title, wide, children }) => {
             className="w-8 h-8 flex items-center justify-center rounded-full bg-white/8 hover:bg-white/15 text-white/60 hover:text-white text-lg transition-all"
           >×</button>
         </div>
-
-        {/* Body */}
         <div className="px-5 py-5 overflow-y-auto flex-1 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {children}
         </div>
-
-        {/* Safe area bottom padding */}
         <div className="shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', minHeight: '4px' }} />
       </div>
     </div>
@@ -142,7 +122,6 @@ const TagSelector = ({ allTags, selectedIds, onChange, onCreateTag }) => {
 
   return (
     <div className="space-y-3">
-      {/* Existing tags */}
       <div className="flex flex-wrap gap-2 min-h-[32px]">
         {allTags.map(tag => (
           <button
@@ -167,7 +146,6 @@ const TagSelector = ({ allTags, selectedIds, onChange, onCreateTag }) => {
         </button>
       </div>
 
-      {/* Create new tag — full width for mobile legibility */}
       {creating && (
         <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div>
@@ -182,7 +160,7 @@ const TagSelector = ({ allTags, selectedIds, onChange, onCreateTag }) => {
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
-              style={{ fontSize: '16px' }} // prevents zoom on iOS
+              style={{ fontSize: '16px' }}
             />
           </div>
           <div>
@@ -206,6 +184,57 @@ const TagSelector = ({ allTags, selectedIds, onChange, onCreateTag }) => {
           >
             {loading ? '...' : `Add "${newTagName || 'tag'}"`}
           </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Friend Select (custom, no white flash) ───────────────────
+const FriendSelect = ({ friends, value, onChange, placeholder = 'Select friend' }) => {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const selected = friends.find(f => f.id === value)
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 bg-white/[0.08] border border-white/[0.15] rounded-2xl px-4 py-3.5 text-sm text-left outline-none focus:border-emerald-400/60 transition-all"
+        style={{ color: selected ? '#fff' : 'rgba(255,255,255,0.3)', fontSize: '16px' }}
+      >
+        <span className="truncate">{selected ? selected.name : placeholder}</span>
+        <svg className={`w-4 h-4 shrink-0 text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-50 left-0 right-0 mt-1 rounded-2xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, rgba(20,20,35,0.98) 0%, rgba(12,12,22,0.99) 100%)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          }}
+        >
+          {friends.map(f => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => { onChange(f.id); setOpen(false) }}
+              className={`w-full text-left px-4 py-3 text-sm transition-all hover:bg-white/[0.08] ${value === f.id ? 'text-emerald-400 bg-emerald-400/5' : 'text-white/80'}`}
+            >
+              {f.name}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -249,7 +278,6 @@ const FriendDetailModal = ({ friend, open, onClose, onSettle, onSettleAll, userI
           </div>
         ) : (
           <>
-            {/* Summary Card */}
             <div className="rounded-2xl p-4" style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.18)' }}>
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -359,9 +387,7 @@ const GlassCard = ({ children, className = '', glow = '' }) => (
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
       border: '1px solid rgba(255,255,255,0.08)',
-      boxShadow: glow
-        ? `0 8px 40px rgba(0,0,0,0.3), ${glow}`
-        : '0 8px 40px rgba(0,0,0,0.3)',
+      boxShadow: glow ? `0 8px 40px rgba(0,0,0,0.3), ${glow}` : '0 8px 40px rgba(0,0,0,0.3)',
     }}
   >
     {children}
@@ -395,8 +421,9 @@ export default function Dashboard() {
   const [showEmis, setShowEmis]         = useState(false)
   const [friendDetail, setFriendDetail] = useState(null)
 
-  // Budget form
+  // Salary/budget form
   const [budgetInput, setBudgetInput] = useState('')
+  const [salaryMode, setSalaryMode] = useState('add') // 'add' | 'set'
 
   // Transaction form
   const [txn, setTxn] = useState({
@@ -442,35 +469,56 @@ export default function Dashboard() {
   useEffect(() => { load() }, [load])
 
   // ── computed ──────────────────────────────────────────────
-  const budgetAmt = budget ? Number(budget.amount) : 0
+  const salaryAmt = budget ? Number(budget.amount) : 0
   const totalWinnings = winnings.reduce((s, w) => s + Number(w.amount), 0)
-  const effectiveBudget = budgetAmt + totalWinnings
+  const totalInflow = salaryAmt + totalWinnings
 
   const emiPaidThisMonth = emis.reduce((s, emi) => {
     const paid = (emi.emi_payments || []).find(p => p.month === currentMonth && p.year === currentYear)
     return s + (paid ? Number(paid.amount) : 0)
   }, 0)
 
+  // totalSpent = total_amount for expenses, negative my_amount for credits (same logic as myActualSpend)
   const totalSpent = transactions.reduce((s, t) => {
     const myAmt = Number(t.my_amount)
-    const totalAmt = Number(t.total_amount)
     if (myAmt < 0) return s + myAmt
-    return s + totalAmt
+    return s + Number(t.total_amount)
   }, 0)
+
   const pendingTotal = pendingDebts.reduce((s, d) => s + Number(d.amount), 0)
-  const remaining = effectiveBudget - totalSpent
+
+  // ── Main hero values ──────────────────────────────────────
+  // Use total_amount for expenses — you paid the full bill upfront.
+  // Credits (my_amount < 0) are debt collections flowing back in.
+  // Example: spend ₹100 total → -100. Friend pays ₹40 back → +40. Net: -60. Correct.
+  const myActualSpend = transactions.reduce((s, t) => {
+    const myAmt = Number(t.my_amount)
+    if (myAmt < 0) return s + myAmt           // credit: flows back into balance
+    return s + Number(t.total_amount)         // expense: full amount you laid out
+  }, 0)
+  const remaining = totalInflow - myActualSpend
   const afterDebts = remaining + pendingTotal
-  const pct = effectiveBudget > 0 ? Math.min((totalSpent / effectiveBudget) * 100, 100) : 0
+  const pct = totalInflow > 0 ? Math.min((myActualSpend / totalInflow) * 100, 100) : 0
 
   const getEmiProgress = (emi) => (emi.emi_payments || []).length
   const isEmiPaidThisMonth = (emi) =>
     (emi.emi_payments || []).some(p => p.month === currentMonth && p.year === currentYear)
 
-  // ── budget ────────────────────────────────────────────────
+  // ── salary/budget ─────────────────────────────────────────
   const saveBudget = async () => {
-    if (!budgetInput || isNaN(budgetInput)) return
-    const { data } = await upsertBudget(user.id, parseFloat(budgetInput))
-    if (data) { setBudget(data); setShowBudget(false); setBudgetInput('') }
+    const val = parseFloat(budgetInput)
+    if (!budgetInput || isNaN(val) || val <= 0) return
+
+    if (salaryMode === 'add') {
+      // Add to balance as a winning/income entry
+      const label = salaryAmt > 0 ? 'Salary added' : 'Opening balance'
+      const { error } = await addWinning(user.id, label, val)
+      if (!error) { setShowBudget(false); setBudgetInput(''); load() }
+    } else {
+      // 'set' mode — replace base salary entirely
+      const { data } = await upsertBudget(user.id, val)
+      if (data) { setBudget(data); setShowBudget(false); setBudgetInput(''); load() }
+    }
   }
 
   // ── tags ─────────────────────────────────────────────────
@@ -625,7 +673,6 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Desktop nav buttons */}
           <button onClick={() => setShowTagMgr(true)} className="hidden sm:block text-xs text-white/50 hover:text-white px-3 py-1.5 rounded-xl transition-all" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>🏷 Tags</button>
           <button onClick={() => setShowEmis(true)} className={`hidden sm:block text-xs px-3 py-1.5 rounded-xl border transition-all ${emis.length > 0 ? 'text-violet-300 border-violet-400/20' : 'text-white/50 border-white/8'}`} style={{ background: emis.length > 0 ? 'rgba(167,139,250,0.08)' : 'rgba(255,255,255,0.06)' }}>📋 EMIs</button>
           <button onClick={() => setShowFriends(true)} className="hidden sm:block text-xs text-white/50 hover:text-white px-3 py-1.5 rounded-xl transition-all" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>👥 Friends</button>
@@ -638,12 +685,8 @@ export default function Dashboard() {
             {pendingDebts.length > 0 && <span className="bg-amber-400 text-[#07070f] text-[10px] font-black px-1.5 py-0.5 rounded-full">{pendingDebts.length}</span>}
           </button>
           <button onClick={() => navigate('/analytics')} className="hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all text-violet-300 border-violet-400/20" style={{ background: 'rgba(167,139,250,0.08)' }}>📊 Analytics</button>
-
           <div className="w-px h-4 bg-white/10 hidden sm:block" />
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-400 text-xs font-black"
-            style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)' }}
-          >
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-400 text-xs font-black" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)' }}>
             {displayName.charAt(0).toUpperCase()}
           </div>
           <button onClick={handleSignOut} className="text-xs text-white/30 hover:text-white/60 transition-colors">Out</button>
@@ -657,7 +700,7 @@ export default function Dashboard() {
           </div>
         ) : (<>
 
-          {/* ── Budget Hero Card ── */}
+          {/* ── Balance Hero Card ── */}
           <div
             className="relative overflow-hidden rounded-3xl p-5 sm:p-6"
             style={{
@@ -670,50 +713,55 @@ export default function Dashboard() {
             {/* Glow */}
             <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.12) 0%, transparent 70%)', filter: 'blur(20px)' }} />
 
-            <div className="flex items-start justify-between mb-5 relative">
+            <div className="flex items-start justify-between mb-4 relative">
               <div>
-                <p className="text-[10px] text-emerald-400/60 uppercase tracking-[0.2em] font-semibold mb-2">{MONTHS[currentMonth - 1]} {currentYear} · Budget</p>
+                <p className="text-[10px] text-emerald-400/60 uppercase tracking-[0.2em] font-semibold mb-2">
+                  {MONTHS[currentMonth - 1]} {currentYear} · Balance
+                </p>
+
+                {/* ── MAIN NUMBER: remaining balance ── */}
                 <div className="flex items-baseline gap-3 flex-wrap">
-                  <p className="text-3xl sm:text-4xl font-black tracking-tight">
-                    {effectiveBudget > 0 ? fmt(effectiveBudget) : <span className="text-white/20">Not set</span>}
+                  <p className={`text-3xl sm:text-4xl font-black tracking-tight ${remaining < 0 ? 'text-red-400' : 'text-white'}`}>
+                    {totalInflow > 0
+                      ? fmt(remaining)
+                      : <span className="text-white/20">Set your salary →</span>
+                    }
                   </p>
-                  {totalWinnings > 0 && (
-                    <span className="text-xs text-emerald-400 px-2.5 py-1 rounded-full font-semibold" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)' }}>
-                      +{fmt(totalWinnings)} slice
-                    </span>
-                  )}
                 </div>
-                {budgetAmt > 0 && totalWinnings > 0 && (
-                  <p className="text-xs text-white/25 mt-1">Base: {fmt(budgetAmt)}</p>
+
+                {/* Sub-line: salary context */}
+                {salaryAmt > 0 && (
+                  <p className="text-xs text-white/25 mt-1.5 flex items-center gap-2 flex-wrap">
+                    <span>of {fmt(totalInflow)} salary{totalWinnings > 0 ? ` + ${fmt(totalWinnings)} extra` : ''}</span>
+                    <span className="text-white/15">·</span>
+                    <span className={myActualSpend > 0 ? 'text-white/35' : 'text-white/20'}>spent {fmt(Math.max(myActualSpend, 0))}</span>
+                  </p>
                 )}
               </div>
+
               <div className="flex flex-col gap-2 items-end shrink-0">
                 <button
-                  onClick={() => { setBudgetInput(budgetAmt > 0 ? String(budgetAmt) : ''); setShowBudget(true) }}
+                  onClick={() => { setBudgetInput(''); setSalaryMode('add'); setShowBudget(true) }}
                   className="text-xs px-3 py-2 rounded-xl font-semibold transition-all active:scale-95"
                   style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}
                 >
-                  {budgetAmt > 0 ? '✏️ Edit' : '+ Set Budget'}
-                </button>
-                <button
-                  onClick={() => setShowWinnings(true)}
-                  className="text-xs px-3 py-2 rounded-xl font-semibold transition-all active:scale-95"
-                  style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', color: '#c4b5fd' }}
-                >
-                  🎰 Winnings
+                  {salaryAmt > 0 ? '💰 Salary' : '+ Set Salary'}
                 </button>
               </div>
             </div>
 
-            {budgetAmt > 0 ? (
+            {totalInflow > 0 && (
               <>
+                {/* Progress bar — how much of salary is spent */}
                 <div className="mb-4">
                   <div className="flex justify-between text-xs text-white/35 mb-2">
                     <span>
-                      Spent {fmt(totalSpent)}
+                      {pct.toFixed(1)}% used
                       {emiPaidThisMonth > 0 && <span className="text-violet-300/60 ml-1">(+{fmt(emiPaidThisMonth)} EMI)</span>}
                     </span>
-                    <span className={pct > 85 ? 'text-red-400' : pct > 60 ? 'text-amber-400' : 'text-emerald-400/70'}>{pct.toFixed(1)}%</span>
+                    <span className={pct > 85 ? 'text-red-400' : pct > 60 ? 'text-amber-400' : 'text-emerald-400/70'}>
+                      {fmt(Math.max(myActualSpend, 0))} / {fmt(totalInflow)}
+                    </span>
                   </div>
                   <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                     <div
@@ -726,11 +774,31 @@ export default function Dashboard() {
                     />
                   </div>
                 </div>
+
+                {/* Stats row */}
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: 'Remaining', val: fmt(remaining), color: remaining < 0 ? '#f87171' : 'rgba(255,255,255,0.9)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)' },
-                    { label: 'To Collect', val: fmt(pendingTotal), color: '#fbbf24', bg: 'rgba(251,191,36,0.06)', border: 'rgba(251,191,36,0.15)' },
-                    { label: 'After Debts', val: fmt(afterDebts), color: '#34d399', bg: 'rgba(52,211,153,0.06)', border: 'rgba(52,211,153,0.15)' },
+                    {
+                      label: 'To Collect',
+                      val: fmt(pendingTotal),
+                      color: '#fbbf24',
+                      bg: 'rgba(251,191,36,0.06)',
+                      border: 'rgba(251,191,36,0.15)',
+                    },
+                    {
+                      label: 'If Collected',
+                      val: fmt(afterDebts),
+                      color: '#34d399',
+                      bg: 'rgba(52,211,153,0.06)',
+                      border: 'rgba(52,211,153,0.15)',
+                    },
+                    {
+                      label: 'EMI / Mo',
+                      val: emiPaidThisMonth > 0 ? fmt(emiPaidThisMonth) : '—',
+                      color: '#a78bfa',
+                      bg: 'rgba(167,139,250,0.06)',
+                      border: 'rgba(167,139,250,0.15)',
+                    },
                   ].map(({ label, val, color, bg, border }) => (
                     <div key={label} className="rounded-2xl p-3 text-center" style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1 font-semibold">{label}</p>
@@ -739,8 +807,17 @@ export default function Dashboard() {
                   ))}
                 </div>
               </>
-            ) : (
-              <p className="text-sm text-white/25">Set a monthly budget to start tracking.</p>
+            )}
+
+            {/* No salary set — prompt */}
+            {totalInflow === 0 && (
+              <button
+                onClick={() => { setBudgetInput(''); setSalaryMode('add'); setShowBudget(true) }}
+                className="w-full mt-1 py-3.5 text-sm font-bold rounded-2xl transition-all active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', color: '#07070f', boxShadow: '0 4px 20px rgba(52,211,153,0.3)' }}
+              >
+                💰 Set this month's salary
+              </button>
             )}
           </div>
 
@@ -952,27 +1029,117 @@ export default function Dashboard() {
         </>)}
       </main>
 
-      {/* ══ MODAL: Budget ══ */}
-      <Modal open={showBudget} onClose={() => setShowBudget(false)} title="Set Monthly Budget">
+      {/* ══ MODAL: Balance / Salary ══ */}
+      <Modal open={showBudget} onClose={() => { setShowBudget(false); setBudgetInput('') }} title="💰 Balance">
         <div className="space-y-4">
-          <p className="text-sm text-white/40">Spending limit for {MONTHS[currentMonth - 1]} {currentYear}</p>
-          <div>
-            <label className={lCls}>Budget Amount (₹)</label>
-            <input
-              className={iCls}
-              type="number"
-              inputMode="numeric"
-              placeholder="e.g. 15000"
-              value={budgetInput}
-              onChange={e => setBudgetInput(e.target.value)}
-              autoFocus
-              onKeyDown={e => e.key === 'Enter' && saveBudget()}
-              style={{ fontSize: '16px' }}
-            />
+
+          {/* Current balance summary */}
+          <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.15)' }}>
+            <div>
+              <p className="text-[10px] text-emerald-400/60 uppercase tracking-widest font-semibold mb-1">Current Balance</p>
+              <p className={`text-2xl font-black ${remaining < 0 ? 'text-red-400' : 'text-white'}`}>{fmt(remaining)}</p>
+              <p className="text-xs text-white/25 mt-0.5">Total in: {fmt(totalInflow)} · Spent: {fmt(Math.max(myActualSpend, 0))}</p>
+            </div>
           </div>
-          <button onClick={saveBudget} className="w-full py-4 font-bold text-sm rounded-2xl transition-all active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', color: '#07070f', boxShadow: '0 4px 20px rgba(52,211,153,0.3)' }}>
-            Save Budget
+
+          {/* Mode tabs */}
+          <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {[
+              { key: 'add', label: '+ Add Money', desc: 'Salary, bonus, etc.' },
+              { key: 'set', label: '✏ Set Exact', desc: 'Override total inflow' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setSalaryMode(tab.key); setBudgetInput('') }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${salaryMode === tab.key ? 'bg-emerald-400 text-[#07070f]' : 'text-white/40 hover:text-white/70'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {salaryMode === 'add' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-white/35">
+                Got your salary? Add the amount and it'll stack on your current balance.
+              </p>
+              <div>
+                <label className={lCls}>Amount to Add (₹)</label>
+                <input
+                  className={iCls}
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="e.g. 45000"
+                  value={budgetInput}
+                  onChange={e => setBudgetInput(e.target.value)}
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && saveBudget()}
+                  style={{ fontSize: '16px' }}
+                />
+              </div>
+              {budgetInput && !isNaN(parseFloat(budgetInput)) && parseFloat(budgetInput) > 0 && (
+                <div className="rounded-2xl px-4 py-3 text-xs" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.12)' }}>
+                  <span className="text-white/30">New balance will be </span>
+                  <span className="text-emerald-400 font-bold">{fmt(remaining + parseFloat(budgetInput))}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-white/35">
+                Override your total inflow amount directly. This replaces the base salary (not the add-ons).
+              </p>
+              <div>
+                <label className={lCls}>Set Base Salary (₹)</label>
+                <input
+                  className={iCls}
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="e.g. 45000"
+                  value={budgetInput}
+                  onChange={e => setBudgetInput(e.target.value)}
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && saveBudget()}
+                  style={{ fontSize: '16px' }}
+                />
+              </div>
+              {salaryAmt > 0 && (
+                <p className="text-xs text-white/25">Current base: {fmt(salaryAmt)}</p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={saveBudget}
+            disabled={!budgetInput || isNaN(parseFloat(budgetInput)) || parseFloat(budgetInput) <= 0}
+            className="w-full py-4 font-bold text-sm rounded-2xl transition-all active:scale-[0.98] disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', color: '#07070f', boxShadow: '0 4px 20px rgba(52,211,153,0.3)' }}
+          >
+            {salaryMode === 'add' ? `Add ${budgetInput ? fmt(parseFloat(budgetInput) || 0) : '₹0'} to Balance` : 'Set Salary'}
           </button>
+
+          {/* Income history from winnings */}
+          {winnings.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <p className={lCls}>Income Added This Month</p>
+              {winnings.map(w => (
+                <div key={w.id} className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{w.title}</p>
+                    <p className="text-xs text-white/25">{new Date(w.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-bold text-emerald-400">+{fmt(w.amount)}</span>
+                    <button onClick={() => { removeWinning(w.id) }} className="text-white/20 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between text-xs pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="text-white/25">Total added</span>
+                <span className="text-emerald-400 font-semibold">{fmt(totalWinnings)}</span>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -1012,15 +1179,28 @@ export default function Dashboard() {
             </div>
 
             {splits.map((sp, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex gap-2 items-center">
-                  <select className={`${sCls} flex-1`} value={sp.friendId} onChange={e => updateSplit(i, 'friendId', e.target.value)} style={{ fontSize: '16px' }}>
-                    <option value="">Select friend</option>
-                    {friends.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
-                  <input className={`${iCls} w-28`} type="number" inputMode="decimal" placeholder="₹ share" value={sp.amount} onChange={e => updateSplit(i, 'amount', e.target.value)} style={{ fontSize: '16px' }} />
-                  <button onClick={() => removeSplit(i)} className="w-9 h-9 flex items-center justify-center text-white/25 hover:text-red-400 text-xl transition-colors rounded-xl shrink-0" style={{ background: 'rgba(255,255,255,0.04)' }}>×</button>
-                </div>
+              <div key={i} className="flex gap-2 items-center">
+                {/* ── Custom friend dropdown — no white flash ── */}
+                <FriendSelect
+                  friends={friends}
+                  value={sp.friendId}
+                  onChange={(val) => updateSplit(i, 'friendId', val)}
+                  placeholder="Select friend"
+                />
+                <input
+                  className={`${iCls} w-28 shrink-0`}
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="₹ share"
+                  value={sp.amount}
+                  onChange={e => updateSplit(i, 'amount', e.target.value)}
+                  style={{ fontSize: '16px' }}
+                />
+                <button
+                  onClick={() => removeSplit(i)}
+                  className="w-9 h-9 flex items-center justify-center text-white/25 hover:text-red-400 text-xl transition-colors rounded-xl shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                >×</button>
               </div>
             ))}
 
@@ -1028,7 +1208,7 @@ export default function Dashboard() {
               <div className="pt-2 border-t border-white/6">
                 <label className={lCls}>My Share (auto)</label>
                 <input
-                  className={`${iCls}`}
+                  className={iCls}
                   type="number"
                   inputMode="decimal"
                   value={txn.myAmount}
@@ -1182,19 +1362,19 @@ export default function Dashboard() {
         userId={user?.id}
       />
 
-      {/* ══ MODAL: Winnings ══ */}
-      <Modal open={showWinnings} onClose={() => setShowWinnings(false)} title="🎰 Slice Winnings">
+      {/* ══ MODAL: Winnings / Extra Income ══ */}
+      <Modal open={showWinnings} onClose={() => setShowWinnings(false)} title="🎰 Extra Income">
         <div className="space-y-4">
-          <p className="text-sm text-white/40">Add Slice winnings to boost your {MONTHS[currentMonth - 1]} budget.</p>
-          <input className={iCls} placeholder="e.g. Weekend Slice win" value={winTitle} onChange={e => setWinTitle(e.target.value)} style={{ fontSize: '16px' }} />
+          <p className="text-sm text-white/40">Add bonuses, winnings, or any extra money to boost your {MONTHS[currentMonth - 1]} balance.</p>
+          <input className={iCls} placeholder="e.g. Weekend Slice win, Freelance work" value={winTitle} onChange={e => setWinTitle(e.target.value)} style={{ fontSize: '16px' }} />
           <input className={iCls} type="number" inputMode="decimal" placeholder="₹ Amount" value={winAmount} onChange={e => setWinAmount(e.target.value)} style={{ fontSize: '16px' }} />
           {winErr && <p className="text-red-400 text-xs">{winErr}</p>}
           <button onClick={saveWinning} className="w-full py-4 font-bold text-sm rounded-2xl transition-all active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', color: '#fff', boxShadow: '0 4px 20px rgba(139,92,246,0.3)' }}>
-            + Add Winning
+            + Add Income
           </button>
 
           {winnings.length === 0 ? (
-            <p className="text-center text-white/20 text-sm py-3">No winnings added this month</p>
+            <p className="text-center text-white/20 text-sm py-3">No extra income this month</p>
           ) : (
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-white/30 pb-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -1223,7 +1403,6 @@ export default function Dashboard() {
         <div className="space-y-4">
           <p className="text-sm text-white/40">Track monthly installments. Mark each month as paid.</p>
 
-          {/* Add form */}
           <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <p className={lCls}>New EMI</p>
             <input className={iCls} placeholder="e.g. iPhone 15 Pro, Bike loan" value={emiForm.title} onChange={e => setEmiForm(f => ({ ...f, title: e.target.value }))} style={{ fontSize: '16px' }} />
